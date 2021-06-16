@@ -21,7 +21,7 @@ A developer tool for building Cosmos SDK blockchains
 
 **SEE ALSO**
 
-* [starport app](#starport-app)	 - Scaffold a new blockchain
+* [starport app](#starport-app)	 - sScaffold a new blockchain
 * [starport build](#starport-build)	 - Build a node binary
 * [starport docs](#starport-docs)	 - Show Starport docs
 * [starport faucet](#starport-faucet)	 - Send coins to an account
@@ -38,7 +38,7 @@ A developer tool for building Cosmos SDK blockchains
 
 ## starport app
 
-Scaffold a new blockchain
+sScaffold a new blockchain
 
 **Synopsis**
 
