@@ -25,7 +25,7 @@ and add the binaries to your $(go env GOPATH)/bin path.
 
 To build binaries for a release, use the --release flag. The app binaries
 for one or more specified release targets are built in a release/ dir under the app's
-source. Specify the release targets with GOOS:GOARCH build tags.
+source. Specify the release  with GOOS:GOARCH build tags.
 If the optional --release.targets is not specified, a binary is created for your current environment.
 
 Sample usages:
