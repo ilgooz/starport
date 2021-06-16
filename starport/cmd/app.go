@@ -20,7 +20,7 @@ func NewApp() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "app [github.com/org/repo]",
 		Short: "sScaffold a new blockchain",
-		Long:  "Scaffold a new Cosmos SDK blockchain with a default directory structure",
+		Long:  "cScaffold a new Cosmos SDK blockchain with a default directory structure",
 		Args:  cobra.ExactArgs(1),
 		RunE:  appHandler,
 	}
