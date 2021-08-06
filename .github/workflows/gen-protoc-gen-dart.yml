@@ -7,8 +7,10 @@ on:
 
 jobs:
   dart:
-    os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v2
 
