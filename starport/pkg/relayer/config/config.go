@@ -14,8 +14,17 @@ var configPath = os.ExpandEnv("$HOME/.starport/relayer/config.yml")
 
 type Config struct {
 	Version string  `yaml:"version"`
-	Chains  []Chain `yaml:"chains"`
-	Paths   []Path  `yaml:"paths"`
+	Chains  []Chain `yaml:"chains,omitempty"`
+	Paths   []Path  `yaml:"paths,omitempty"`
+}
+
+func (c Config) ChainByID(id string) (Chain, error) {
+	for _, chain := range c.Chains {
+		if chain.ID == id {
+			return chain, nil
+		}
+	}
+	return Chain{}, fmt.Errorf("chain %q cannot be found", id)
 }
 
 func (c Config) PathByID(id string) (Path, error) {
@@ -32,25 +41,25 @@ type Chain struct {
 	Account       string `yaml:"account"`
 	AddressPrefix string `yaml:"address_prefix"`
 	RPCAddress    string `yaml:"rpc_address"`
-	GasPrice      string `yaml:"gas_price"`
-	GasLimit      int64  `yaml:"gas_limit"`
+	GasPrice      string `yaml:"gas_price,omitempty"`
+	GasLimit      int64  `yaml:"gas_limit,omitempty"`
 }
 
 type Path struct {
 	ID       string  `yaml:"id"`
-	Ordering string  `yaml:"ordering"`
+	Ordering string  `yaml:"ordering,omitempty"`
 	Src      PathEnd `yaml:"src"`
 	Dst      PathEnd `yaml:"dst"`
 }
 
 type PathEnd struct {
 	ChainID      string `yaml:"chain_id"`
-	ConnectionID string `yaml:"connection_id"`
-	ChannelID    string `yaml:"channel_id"`
+	ConnectionID string `yaml:"connection_id,omitempty"`
+	ChannelID    string `yaml:"channel_id,omitempty"`
 	PortID       string `yaml:"port_id"`
-	Version      string `yaml:"version"`
-	PacketHeight int64  `yaml:"packet_height"`
-	AckHeight    int64  `yaml:"ack_height"`
+	Version      string `yaml:"version,omitempty"`
+	PacketHeight int64  `yaml:"packet_height,omitempty"`
+	AckHeight    int64  `yaml:"ack_height,omitempty"`
 }
 
 func Get() (Config, error) {

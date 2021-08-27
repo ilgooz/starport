@@ -150,8 +150,6 @@ export default class Relayer {
 	constructor(pollTime = 5000) {
 		this.homedir = os.homedir();
 		this.pollTime = pollTime;
-		this.ensureConfigDirCreated();
-		this.initConfigProxy();
 	}
 
 	public async link([paths]: [string[]]): Promise<LinkResponse> {
@@ -215,86 +213,7 @@ export default class Relayer {
 		return {};
 	}
 
-	public async info(): Promise<InfoResponse> {
-		return { configPath: this.getConfigPath() };
-	}
 
-
-	private initConfigProxy() {
-		const nestedProxy = {
-			set: (target, prop, value) => {
-				target[prop] = value;
-				this.writeConfig(this.config);
-				return true;
-			},
-
-			get: (target, prop) => {
-				if (typeof target[prop] === "object" && target[prop] !== null)
-					return new Proxy(target[prop], nestedProxy);
-				return target[prop];
-			},
-		};
-
-		this.config = new Proxy(this.readOrCreateConfig(), nestedProxy);
-	}
-
-	private getConfigDirPath() {
-		return join(this.homedir, this.configDir);
-	}
-
-	private getConfigPath() {
-		return join(this.getConfigDirPath(), this.configFile);
-	}
-
-	private ensureConfigDirCreated() {
-		try {
-			if (!fs.existsSync(this.getConfigDirPath()))
-				fs.mkdirSync(this.getConfigDirPath(), { recursive: true });
-		} catch (e) {
-			throw Errors.ConfigFolderFailed(e);
-		}
-	}
-
-	private readOrCreateConfig(): RelayerConfig {
-		// return the config if already exists.
-		try {
-			if (fs.existsSync(this.getConfigPath())) {
-				let configFile = fs.readFileSync(this.getConfigPath(), "utf8");
-				return yaml.load(configFile);
-			}
-		} catch (e) {
-			throw Errors.ConfigReadFailed(e);
-		}
-
-		// there is no config, create one and return it.
-		let config = {
-		};
-
-		this.writeConfig(config);
-
-		return config;
-	}
-
-	private writeConfig(config) {
-		try {
-			let configFile = yaml.dump(config);
-			fs.writeFileSync(this.getConfigPath(), configFile, "utf8");
-		} catch (e) {
-			throw Errors.ConfigWriteFailed(e);
-		}
-	}
-
-	private chainById(chainID: string): ChainConfig {
-		return this.config.chains
-			? this.config.chains.find((x) => x.chainId == chainID)
-			: null;
-	}
-
-	private pathById(pathID: string): PathConfig {
-		return this.config.paths
-			? this.config.paths.find((x) => x.path.id == pathID)
-			: null;
-	}
 	private async balanceCheck(chain: ChainConfig): Promise<boolean> {
 		let chainBalances = await this.getAccountBalance([chain.chainId]);
 		let chainGP = GasPrice.fromString(chain.gasPrice);
@@ -392,13 +311,6 @@ export default class Relayer {
 		);
 
 		return link;
-	}
-
-	private async queryClient(rpcAddr: string): Promise<QueryClient> {
-		return QueryClient.withExtensions(
-			await Tendermint34Client.connect(rpcAddr),
-      		setupBankExtension,
-    	);
 	}
 
 	private async getIBCClient(chain: ChainConfig): Promise<IbcClient> {

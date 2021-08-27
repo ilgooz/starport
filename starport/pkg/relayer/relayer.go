@@ -2,9 +2,46 @@ package relayer
 
 import (
 	"context"
+	"io"
+	"strings"
 
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/tendermint/starport/starport/pkg/cosmosaccount"
+	"github.com/tendermint/starport/starport/pkg/cosmosclient"
 	tsrelayer "github.com/tendermint/starport/starport/pkg/nodetime/programs/ts-relayer"
+	relayerconfig "github.com/tendermint/starport/starport/pkg/relayer/config"
+	"github.com/tendermint/starport/starport/pkg/xurl"
 )
+
+type Relayer struct {
+	ca cosmosaccount.Registry
+}
+
+func NewRelayer(ca cosmosaccount.Registry) Relayer {
+	r := Relayer{
+		ca: ca,
+	}
+
+	return r
+}
+
+func fixRPCAddress(rpcAddress string) string {
+	return strings.TrimSuffix(xurl.HTTPEnsurePort(rpcAddress), "/")
+}
+
+func rpcClient(rpcAddress string) (*rpchttp.HTTP, error) {
+	rpcAddress = fixRPCAddress(rpcAddress)
+	return rpchttp.New(rpcAddress, "/websocket")
+}
+
+func clientCtx(rpcAddress string) (client.Context, error) {
+	rpcClient, err := rpcClient(rpcAddress)
+	if err != nil {
+		return nil, err
+	}
+	cc := cosmosclient.NewContext(rpcClient, io.Discard, "", "")
+	return cc, nil
+}
 
 type LinkStatus struct {
 	ID       string `json:"pathName"`
@@ -14,22 +51,58 @@ type LinkStatus struct {
 // Link links all chains that has a path to each other.
 // paths are optional and acts as a filter to only link some chains.
 // calling Link multiple times for the same paths does not have any side effects.
-func Link(ctx context.Context, paths []Path, privKeys map[string]string) (
-	linkedPaths, alreadyLinkedPaths []string, failedToLinkPaths []LinkStatus, err error) {
-	var reply struct {
-		LinkedPaths        []string     `json:"linkedPaths"`
-		AlreadyLinkedPaths []string     `json:"alreadyLinkedPaths"`
-		FailedToLinkPaths  []LinkStatus `json:"failedToLinkPaths"`
+func (r Relayer) Link(ctx context.Context, pathIDs ...string) (err error) {
+	conf, err := relayerconfig.Get()
+	if err != nil {
+		return err
 	}
-	err = tsrelayer.Call(ctx, "link", []interface{}{paths, privKeys}, &reply)
-	linkedPaths = reply.LinkedPaths
-	alreadyLinkedPaths = reply.AlreadyLinkedPaths
-	failedToLinkPaths = reply.FailedToLinkPaths
+
+	for _, id := range pathIDs {
+		path, err := conf.PathByID(id)
+		if err != nil {
+			return err
+		}
+
+		if path.Src.ChannelID != "" { // already linked.
+			continue
+		}
+
+		chainSrc, err := conf.ChainByID(path.Src.ID)
+		if err != nil {
+			return err
+		}
+
+		chainDst, err := conf.ChainByID(path.Dst.ID)
+		if err != nil {
+			return err
+		}
+
+		var reply interface{}
+		tsrelayer.Call(ctx, "link", []interface{}{chainSrc, chainDst}, &reply)
+
+	}
+
 	return
 }
 
+func (r Relayer) checkBalance(rpcAddress, account, addressPrefix string) error {
+	rpcAddress = strings.TrimSuffix(xurl.HTTPEnsurePort(rpcAddress), "/")
+	rpcClient, err := rpchttp.New(rpcAddress, "/websocket")
+	if err != nil {
+		return nil, err
+	}
+
+	acc, err := r.ca.GetByName(account)
+	if err != nil {
+		return err
+	}
+	addr := acc.Address(chainSrc.options.AddressPrefix)
+
+	return nil
+}
+
 // Start relays tx packets for paths until ctx is canceled.
-func Start(ctx context.Context, paths ...string) error {
+func (r Relayer) Start(ctx context.Context, paths ...string) error {
 	var reply interface{}
 	return tsrelayer.Call(ctx, "start", []interface{}{paths}, &reply)
 }
@@ -57,27 +130,15 @@ type PathEnd struct {
 }
 
 // GetPath returns a path by its id.
-func GetPath(ctx context.Context, id string) (Path, error) {
+func (r Relayer) GetPath(ctx context.Context, id string) (Path, error) {
 	var path Path
 	err := tsrelayer.Call(ctx, "getPath", []interface{}{id}, &path)
 	return path, err
 }
 
 // ListPaths list all the paths.
-func ListPaths(ctx context.Context) ([]Path, error) {
+func (r Relayer) ListPaths(ctx context.Context) ([]Path, error) {
 	var paths []Path
 	err := tsrelayer.Call(ctx, "listPaths", nil, &paths)
 	return paths, err
-}
-
-// StateInfo holds information about state of relayer.
-type StateInfo struct {
-	ConfigPath string `json:"configPath"`
-}
-
-// Info shows information about the state of relayer.
-func Info(ctx context.Context) (StateInfo, error) {
-	var info StateInfo
-	err := tsrelayer.Call(ctx, "info", nil, &info)
-	return info, err
 }

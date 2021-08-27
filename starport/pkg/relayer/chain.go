@@ -45,9 +45,7 @@ type Chain struct {
 	// faucetAddress is the faucet address to get tokens for relayer accounts.
 	faucetAddress string
 
-	rpcClient *rpchttp.HTTP
-	clientCtx client.Context
-	ca        cosmosaccount.Registry
+	r Relayer
 
 	// options are used to set up the chain.
 	options chainOptions
@@ -104,20 +102,11 @@ func WithAddressPrefix(addressPrefix string) Option {
 }
 
 // NewChain creates a new chain on relayer or uses the existing matching chain.
-func NewChain(ctx context.Context, ca cosmosaccount.Registry, accountName, rpcAddress string, options ...Option) (*Chain, error) {
-	rpcAddress = strings.TrimSuffix(xurl.HTTPEnsurePort(rpcAddress), "/")
-	rpcClient, err := rpchttp.New(rpcAddress, "/websocket")
-	if err != nil {
-		return nil, err
-	}
-	clientCtx := cosmosclient.NewContext(rpcClient, io.Discard, "", "")
-
+func (r Relayer) NewChain(ctx context.Context,  accountName, rpcAddress string, options ...Option) (*Chain, error) {
 	c := &Chain{
 		accountName: accountName,
-		rpcAddress:  rpcAddress,
-		rpcClient:   rpcClient,
-		clientCtx:   clientCtx,
-		ca:          ca,
+		rpcAddress:  r.fixRPCAddress(rpcAddress),
+		r:r,
 	}
 
 	// apply user options.
@@ -129,8 +118,8 @@ func NewChain(ctx context.Context, ca cosmosaccount.Registry, accountName, rpcAd
 }
 
 // AccountBalance returns the balance for account on the chain.
-func (c *Chain) AccountBalance(ctx context.Context) (sdk.Coins, error) {
-	account, err := c.ca.GetByName(c.accountName)
+func (c *Chain) AccountBalance(ctx context.Context) (sdk.Coins, error) {}
+	account, err := c.r.ca.GetByName(c.accountName)
 	if err != nil {
 		return nil, err
 	}
